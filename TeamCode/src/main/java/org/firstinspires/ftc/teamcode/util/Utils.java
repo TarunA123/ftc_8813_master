@@ -12,6 +12,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.text.SimpleDateFormat;
 import java.util.zip.GZIPOutputStream;
 
 /**
@@ -19,6 +20,18 @@ import java.util.zip.GZIPOutputStream;
  */
 
 public class Utils {
+    /**
+     * Return a time in elapsed-time format (hh:mm:ss:hundredths)
+     * @param millis The time to format
+     * @return An elapsed-time string
+     */
+    public static String elapsedTime(long millis) {
+        int hundredths = (int)((millis/10)%100);
+        int seconds    = (int)((millis/1000)%60);
+        int minutes    = (int)((millis/60000)%60);
+        int hours      = (int)((millis/3600000));
+        return String.format("%02d:%02d:%02d.%03d", hours, minutes, seconds, hundredths);
+    }
 
     public static void scanFile(File file) {
         MediaScannerConnection.scanFile(AppUtil.getDefContext(), new String[] { file.toString() }, null,
@@ -61,6 +74,24 @@ public class Utils {
         return (value < min) ? min : ((value > max) ? max : value);
     }
 
+    /**
+     * Creates a scaling factor which scales the range [a,b] to the range [c,d] and applies it to x. <br>
+     * For example,
+     * <pre>
+     *     scaleRange(x, 0, 1, 0, 2) -> x * 2
+     *     scaleRange(x, 0, 1, 1, 2) -> x + 1
+     *     scaleRange(x, 0, pi*2, 0, 360) -> convert x from radians to degrees
+     *     scaleRange(x, 0, 1, 1, 0) -> 1 - x
+     *     scaleRange(x, 0, 1, 1, 3) -> 2*x + 1
+     * </pre>
+     *
+     * @param x The value to scale
+     * @param a The minimum of the first range
+     * @param b The maximum of the first range
+     * @param c The minimum of the second range
+     * @param d The maximum of the second range
+     * @return
+     */
     public static double scaleRange(double x, double a, double b, double c, double d) {
         return c * (1.0 - (x - a) / (b - a)) + d * ((x - a) / (b - a));
     }
