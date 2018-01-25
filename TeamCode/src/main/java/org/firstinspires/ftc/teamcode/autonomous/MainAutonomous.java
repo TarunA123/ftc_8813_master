@@ -3,48 +3,74 @@ package org.firstinspires.ftc.teamcode.autonomous;
 
 import com.qualcomm.robotcore.hardware.Servo;
 
+import org.firstinspires.ftc.teamcode.autonomous.tasks.TaskClassifyPictograph;
 import org.firstinspires.ftc.teamcode.autonomous.tasks.TaskPlaceGlyphAutonomous;
+import org.firstinspires.ftc.teamcode.autonomous.tasks.TaskRotate;
+import org.firstinspires.ftc.teamcode.autonomous.tasks.TaskScoreJewel;
+import org.firstinspires.ftc.teamcode.autonomous.util.MotorController;
+import org.firstinspires.ftc.teamcode.autonomous.util.arm.Arm;
+import org.firstinspires.ftc.teamcode.teleop.MainTeleOp;
+import org.firstinspires.ftc.teamcode.teleop.util.ArmDriver;
 
 /**
  * Main autonomous program.
  */
 
 public abstract class MainAutonomous extends BaseAutonomous {
-
+    /** Set to true if a color sensor is available and the jewel knocker should run */
     private static final boolean COLOR_SENSOR = false;
 
     //public abstract boolean isBlue();
     public abstract int quadrant();
-    //public boolean find = config.getBoolean("runFinder", false);
+    public boolean find;
     private TaskClassifyPictograph finder;
-    private Servo ws, ss, es, claw;
+    private Arm arm;
+    private MotorController base;
 
     @Override
     public void initialize() {
-        ws = hardwareMap.servo.get("s0");
-        ss = hardwareMap.servo.get("s1");
-        es = hardwareMap.servo.get("s2");
-        claw = hardwareMap.servo.get("s3");
-        claw.setPosition(0);
+        find = config.getBoolean("run_finder", false);
+        Servo ws = hardwareMap.servo.get("s0");
+        Servo ss = hardwareMap.servo.get("s1");
+        Servo es = hardwareMap.servo.get("s2");
+        Servo claw = hardwareMap.servo.get("s3");
+        Servo wrist = hardwareMap.servo.get("s4");
+        arm = new Arm(ws, ss, es, claw, wrist);
+        arm.closeClaw();
+        base = new MotorController(hardwareMap.dcMotor.get("base"));
         //moveArm(.4134, .1303, .05);
-        ws.setPosition(.3863);
-        ss.setPosition(.0378);
-        es.setPosition(.0386);
-        //finder = new TaskClassifyPictograph();
+        ArmDriver driver = new ArmDriver(arm, config.getDouble("l1", 1),
+                                              config.getDouble("l2", 1), config);
+        claw.setPosition(config.getDouble("claw_closed", 0));
+        //claw_closed = true;
+        driver.moveTo(config.getDouble("dist_init", 0),
+                config.getDouble("adj_init", 0));
+        driver.setWaistAngle(config.getDouble("waist_init", 0));
+        wrist.setPosition(config.getDouble("wrist_init", 0));
+        finder = new TaskClassifyPictograph();
     }
 
     @Override
     public void run() throws InterruptedException {
-        if (false) {
+        //Run finder if enabled
+        if (find) {
+            tasks.add(new TaskRotate(base, config.getInt("toPict_" + quadrant(), 0)));
             tasks.add(finder);
             runTasks();
         }
+        //Get result if finder is not null
         TaskClassifyPictograph.Result result = finder == null ? null : finder.getResult();
+        //Set result to NONE if result is null
         if (result == null) result = TaskClassifyPictograph.Result.NONE;
-        tasks.add(new TaskPlaceGlyphAutonomous(quadrant(), result));
-        /*ws.setPosition(config.getDouble("w_park_"+(isBlue()?"b":"r"), 0));
-        ss.setPosition(config.getDouble("s_park_"+(isBlue()?"b":"r"), 0));
-        es.setPosition(config.getDouble("e_park_"+(isBlue()?"b":"r"), 0));*/
+        //Place glyph
+        tasks.add(new TaskPlaceGlyphAutonomous(quadrant(), result, base, arm));
+        //Knock jewel
+        if (COLOR_SENSOR) tasks.add(new TaskScoreJewel(quadrant()));
+    }
+
+    @Override
+    public void finish() throws InterruptedException {
+        base.close();
     }
 }
 /*
